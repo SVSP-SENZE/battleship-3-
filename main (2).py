@@ -3,612 +3,498 @@ import random
 from shipnew import SHIP_TYPES_LIST, SHIP_SIZES, update_ship_status_on_hit, reset_ship_status, create_ship_record
 from boardnew import can_place, place_ship, auto_place_with_records, check_win
 from gamemanager import process_attack
-import filemanager  # uses battleship.txt saving
+import filemanager
 
 pygame.init()
-screen = pygame.display.set_mode((1000, 800))
+scr = pygame.display.set_mode((1000, 800))
 pygame.display.set_caption("BATTLESHIP")
-clock = pygame.time.Clock()
+clk = pygame.time.Clock()
 
-# Fonts
-font1 = pygame.font.Font(None, 50)
-font2 = pygame.font.Font(None, 30)
+# fonts
+f1 = pygame.font.Font(None, 50)
+f2 = pygame.font.Font(None, 30)
 
-# Input UI
-input_box = pygame.Rect(350, 350, 300, 60)
-active = False
-text = ""
+# input ui
+inpbox = pygame.Rect(350, 350, 300, 60)
+inpactive = False
+inptext = ""
 p1 = ""
 p2 = ""
-current = "p1"
+namecur = "p1"
 
-# Background
-bg1 = pygame.Surface((1000, 800))
-bg1.fill((20, 50, 80))
+# background image (pls work and not break on teacher's pc)
+try:
+    bgimg = pygame.image.load(r"C:\Users\srika\OneDrive\Desktop\random.jpg").convert()
+    bgimg = pygame.transform.scale(bgimg, (1000, 800))
+except Exception:
+    # silly comment 1
+    bgimg = pygame.Surface((1000, 800))
+    bgimg.fill((20, 50, 80))  # fallback bg, vibes of sadness
 
-# Ship image placeholder
-ship_image = pygame.Surface((35, 35), pygame.SRCALPHA)
-pygame.draw.circle(ship_image, (180, 180, 180), (17, 17), 15)
+# ship placeholder
+try:
+    shipimg = pygame.image.load(r"C:\Users\srika\OneDrive\Desktop\ship.jpg").convert_alpha()
+    shipimg = pygame.transform.scale(shipimg, (35, 35))
+except Exception:
+    # silly comment 2
+    shipimg = pygame.Surface((35, 35), pygame.SRCALPHA)
+    pygame.draw.circle(shipimg, (200, 200, 200), (17, 17), 15)  # simple circle ship lol (budget Titanic)
 
-# Buttons
-manual_button = pygame.Rect(300, 300, 400, 80)
-automatic_button = pygame.Rect(300, 420, 400, 80)
-resume_button = pygame.Rect(300, 540, 400, 60)
-restart_button = pygame.Rect(720, 50, 200, 40)
+# buttons
+btnmanual = pygame.Rect(300, 300, 400, 80)
+btnauto = pygame.Rect(300, 420, 400, 80)
+btnresume = pygame.Rect(300, 540, 400, 60)
+btnrestart = pygame.Rect(720, 50, 200, 40)
 
-# Game state
-game_state = "input"
-current_turn_player = ""
+# game state
+gs = "input"
+grd = 10
+brdtl = (300, 200)
+shipsplaced = 0
 
-# NEW delay-related variables
+# boards and attempts
+p1br = [[0] * grd for _ in range(grd)]
+p2br = [[0] * grd for _ in range(grd)]
+p1att = [[0] * grd for _ in range(grd)]
+p2att = [[0] * grd for _ in range(grd)]
+
+curply = "p1"
+winner = None
+
+# colors
+WHITE = (255, 255, 255)
+GRAY  = (150, 150, 150)
+RED   = (220, 50, 50)
+BLUE  = (50, 120, 220)
+
+# placement
+shipidx = 0
+shipdir = "H"
+
+# ship records
+p1ships = []
+p2ships = []
+ssp1 = {name: False for name, _ in SHIP_TYPES_LIST}
+ssp2 = {name: False for name, _ in SHIP_TYPES_LIST}
+
+hassave = filemanager.has_save()
+
+# little timers
 attack_result = ""
 result_timer = 0
 placement_timer = 0
-
-# last_attacker records who made the most recent attack (needed to draw show_result correctly)
 last_attacker = None
+current_turn_player = ""
 
-# Board positions & grids
-gridsize = 10
-player_board_pos = (50, 200)
-enemy_board_pos = (450, 200)
-ship_status_pos = (820, 200)
-
-# Boards
-p1board = [[0]*gridsize for _ in range(gridsize)]
-p2board = [[0]*gridsize for _ in range(gridsize)]
-p1_attempts = [[0]*gridsize for _ in range(gridsize)]
-p2_attempts = [[0]*gridsize for _ in range(gridsize)]
-
-current_player = "p1"
-winner = None
-
-# Colors
-WHITE = (255,255,255)
-GRAY = (150,150,150)
-RED = (220,50,50)
-BLUE = (50,120,220)
-
-# Manual placement
-ship_index = 0
-ship_dir = "H"
-
-# Ship records
-p1_ships = []
-p2_ships = []
-ship_status_p1 = {name: False for name,_ in SHIP_TYPES_LIST}
-ship_status_p2 = {name: False for name,_ in SHIP_TYPES_LIST}
-
-has_saved = filemanager.has_save()
-
-
-# ====================================================
-# SAVE / LOAD
-# ====================================================
-def make_save_dict():
+# ---------- SAVE LOAD ----------
+def makesave():
+    # silly comment 3: saving everything like hoarding memes
     return {
-        "game_state": game_state,
+        "gs": gs,
+        "grd": grd,
+        "brdtl": brdtl,
+        "p1br": p1br,
+        "p2br": p2br,
+        "p1att": p1att,
+        "p2att": p2att,
+        "curply": curply,
+        "winner": winner,
+        "shipidx": shipidx,
+        "shipdir": shipdir,
+        "shipsplaced": shipsplaced,
+        "p1ships": p1ships,
+        "p2ships": p2ships,
+        "ssp1": ssp1,
+        "ssp2": ssp2,
         "p1": p1,
         "p2": p2,
-        "current_player": current_player,
-        "winner": winner,
-        "p1board": p1board,
-        "p2board": p2board,
-        "p1_attempts": p1_attempts,
-        "p2_attempts": p2_attempts,
-        "p1_ships": p1_ships,
-        "p2_ships": p2_ships,
-        "ship_status_p1": ship_status_p1,
-        "ship_status_p2": ship_status_p2,
-        "ship_index": ship_index,
-        "ship_dir": ship_dir,
-        "current_turn_player": current_turn_player,
         "attack_result": attack_result,
-        "last_attacker": last_attacker
+        "last_attacker": last_attacker,
+        "current_turn_player": current_turn_player
     }
 
-def load_state_dict(state):
-    global game_state, p1, p2, current_player, winner
-    global p1board, p2board, p1_attempts, p2_attempts
-    global p1_ships, p2_ships, ship_status_p1, ship_status_p2
-    global ship_index, ship_dir, current_turn_player, attack_result, last_attacker
+def loadsave(s):
+    # silly comment 4: hopefully nothing explodes
+    global gs, grd, brdtl
+    global p1br, p2br, p1att, p2att
+    global curply, winner
+    global shipidx, shipdir, shipsplaced
+    global p1ships, p2ships, ssp1, ssp2
+    global p1, p2, attack_result, last_attacker, current_turn_player
 
-    if not state:
-        return
+    if not s:
+        return False
+    gs = s.get("gs", gs)
+    grd = s.get("grd", grd)
+    brdtl = s.get("brdtl", brdtl)
+    p1br = s.get("p1br", p1br)
+    p2br = s.get("p2br", p2br)
+    p1att = s.get("p1att", p1att)
+    p2att = s.get("p2att", p2att)
+    curply = s.get("curply", curply)
+    winner = s.get("winner", winner)
+    shipidx = s.get("shipidx", shipidx)
+    shipdir = s.get("shipdir", shipdir)
+    shipsplaced = s.get("shipsplaced", shipsplaced)
+    p1ships = s.get("p1ships", p1ships)
+    p2ships = s.get("p2ships", p2ships)
+    ssp1 = s.get("ssp1", ssp1)
+    ssp2 = s.get("ssp2", ssp2)
+    p1 = s.get("p1", p1)
+    p2 = s.get("p2", p2)
+    attack_result = s.get("attack_result", attack_result)
+    last_attacker = s.get("last_attacker", last_attacker)
+    current_turn_player = s.get("current_turn_player", current_turn_player)
+    return True
 
-    game_state = state.get("game_state", "menu")
-    p1 = state.get("p1", "")
-    p2 = state.get("p2", "")
-    current_player = state.get("current_player", "p1")
-    winner = state.get("winner", None)
-    p1board = state.get("p1board", [[0]*gridsize for _ in range(gridsize)])
-    p2board = state.get("p2board", [[0]*gridsize for _ in range(gridsize)])
-    p1_attempts = state.get("p1_attempts", [[0]*gridsize for _ in range(gridsize)])
-    p2_attempts = state.get("p2_attempts", [[0]*gridsize for _ in range(gridsize)])
-    p1_ships = state.get("p1_ships", [])
-    p2_ships = state.get("p2_ships", [])
-    ship_status_p1 = state.get("ship_status_p1", {name: False for name,_ in SHIP_TYPES_LIST})
-    ship_status_p2 = state.get("ship_status_p2", {name: False for name,_ in SHIP_TYPES_LIST})
-    ship_index = state.get("ship_index", 0)
-    ship_dir = state.get("ship_dir", "H")
-    current_turn_player = state.get("current_turn_player", "")
-    attack_result = state.get("attack_result", "")
-    last_attacker = state.get("last_attacker", None)
+# ---------- DRAW HELPERS ----------
+def drawboard(bd, top_left):
+    for r in range(grd):
+        for c in range(grd):
+            rect = pygame.Rect(top_left[0] + c * 35, top_left[1] + r * 35, 35, 35)
+            pygame.draw.rect(scr, WHITE, rect, 2)
+            if bd[r][c] == 1:
+                scr.blit(shipimg, rect.topleft)
 
+def drawattempts(at, top_left):
+    for r in range(grd):
+        for c in range(grd):
+            rect = pygame.Rect(top_left[0] + c * 35, top_left[1] + r * 35, 35, 35)
+            if at[r][c] == 2:
+                pygame.draw.rect(scr, RED, rect)
+            elif at[r][c] == 3:
+                pygame.draw.rect(scr, BLUE, rect)
+            pygame.draw.rect(scr, GRAY, rect, 1)
 
-# ====================================================
-# DRAW HELPERS
-# ====================================================
-def drawboard(board, top_left):
-    for r in range(gridsize):
-        for c in range(gridsize):
-            rect = pygame.Rect(top_left[0]+c*35, top_left[1]+r*35, 35,35)
-            pygame.draw.rect(screen, WHITE, rect, 2)
+def drawfull(board, attempts, top_left):
+    for r in range(grd):
+        for c in range(grd):
+            rect = pygame.Rect(top_left[0] + c * 35, top_left[1] + r * 35, 35, 35)
+            pygame.draw.rect(scr, (40,40,40), rect)
             if board[r][c] == 1:
-                screen.blit(ship_image, rect.topleft)
-
-def draw_attempts(attempts, top_left):
-    for r in range(gridsize):
-        for c in range(gridsize):
-            rect = pygame.Rect(top_left[0]+c*35, top_left[1]+r*35, 35,35)
+                scr.blit(shipimg, rect.topleft)
             if attempts[r][c] == 2:
-                pygame.draw.rect(screen, RED, rect)
+                pygame.draw.rect(scr, RED, rect)
             elif attempts[r][c] == 3:
-                pygame.draw.rect(screen, BLUE, rect)
-            pygame.draw.rect(screen, GRAY, rect, 1)
+                pygame.draw.rect(scr, BLUE, rect)
+            pygame.draw.rect(scr, WHITE, rect, 1)
 
-def draw_full_board(board, attempts, top_left):
-    for r in range(gridsize):
-        for c in range(gridsize):
-            rect = pygame.Rect(top_left[0]+c*35, top_left[1]+r*35, 35,35)
-            pygame.draw.rect(screen, (40,40,40), rect)
-
-            if board[r][c] == 1:
-                screen.blit(ship_image, rect.topleft)
-
-            if attempts[r][c] == 2:
-                pygame.draw.rect(screen, RED, rect)
-            elif attempts[r][c] == 3:
-                pygame.draw.rect(screen, BLUE, rect)
-
-            pygame.draw.rect(screen, WHITE, rect, 1)
-
-def draw_ship_status_for_opponent(status, tl):
-    x, y = tl
-    screen.blit(font1.render("SHIPS", True, (255,255,0)), (x,y))
+def drawshipstatus(status, pos=(700,200)):
+    x,y = pos
+    scr.blit(f1.render("SHIPS", True, (255,255,0)), (x,y))
     y += 60
     for name, size in SHIP_TYPES_LIST:
-        color = RED if status.get(name, False) else WHITE
-        screen.blit(font2.render(f"{size} - {name}", True, color), (x,y))
+        col = RED if status.get(name, False) else WHITE
+        scr.blit(f2.render(f"{size} - {name}", True, col), (x,y))
         y += 40
 
-
-# ====================================================
-# MAIN LOOP
-# ====================================================
-running = True
-while running:
+# ---------- MAIN LOOP ----------
+run = True
+while run:
     for event in pygame.event.get():
-
-        # Quit autosave
         if event.type == pygame.QUIT:
-            filemanager.save_game(make_save_dict())
-            running = False
+            try:
+                filemanager.save_game(makesave())  # silly comment 5: saving like it's the last second of Jenga
+            except Exception:
+                pass
+            run = False
 
-        # Key inputs
+        # rotate ship key & save (because why not)
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                ship_dir = "V" if ship_dir == "H" else "H"
+                shipdir = "V" if shipdir == "H" else "H"
             if event.key == pygame.K_s:
-                filemanager.save_game(make_save_dict())
+                try:
+                    filemanager.save_game(makesave())
+                    # silly comment 6: ctrl+s muscle memory activated
+                except Exception:
+                    print("save failed lol")
 
-
-        # =================================
-        # INPUT NAMES
-        # =================================
-        if game_state == "input":
-
+        # ---------- NAME INPUT ----------
+        if gs == "input":
             if event.type == pygame.MOUSEBUTTONDOWN:
-                active = input_box.collidepoint(event.pos)
-
-            if event.type == pygame.KEYDOWN and active:
+                inpactive = inpbox.collidepoint(event.pos)
+            if event.type == pygame.KEYDOWN and inpactive:
                 if event.key == pygame.K_RETURN:
-                    if current == "p1":
-                        p1 = text.strip()
-                        text = ""
-                        current = "p2"
-                    elif current == "p2":
-                        p2 = text.strip()
-                        text = ""
-                        current = "done"
+                    if inptext.strip() != "":
+                        if namecur == "p1":
+                            p1 = inptext.strip()
+                            inptext = ""
+                            namecur = "p2"
+                        elif namecur == "p2":
+                            p2 = inptext.strip()
+                            inptext = ""
+                            namecur = "done"
+                            inpactive = False
                 elif event.key == pygame.K_BACKSPACE:
-                    text = text[:-1]
+                    inptext = inptext[:-1]
                 else:
-                    text += event.unicode
-
-            if current == "done" and event.type == pygame.KEYDOWN:
+                    if len(inptext) < 20:
+                        inptext += event.unicode
+            if event.type == pygame.KEYDOWN and namecur == "done":
                 if event.key == pygame.K_SPACE:
-                    game_state = "menu"
+                    gs = "menu"
 
-        # =================================
-        # MENU
-        # =================================
-        elif game_state == "menu":
-
+        # ---------- MENU ----------
+        elif gs == "menu":
             if event.type == pygame.MOUSEBUTTONDOWN:
+                if btnmanual.collidepoint(event.pos):
+                    # silly comment 7: manual mode = pain mode
+                    p1ships.clear(); p2ships.clear()
+                    p1br = [[0]*grd for _ in range(grd)]
+                    p2br = [[0]*grd for _ in range(grd)]
+                    p1att = [[0]*grd for _ in range(grd)]
+                    p2att = [[0]*grd for _ in range(grd)]
+                    reset_ship_status(ssp1); reset_ship_status(ssp2)
+                    shipidx = 0; shipdir = "H"
+                    gs = "setupmanualp1"
+                elif btnauto.collidepoint(event.pos):
+                    # silly comment 8: AI placing ships better than humans
+                    p1ships.clear(); p2ships.clear()
+                    p1br = [[0]*grd for _ in range(grd)]
+                    p2br = [[0]*grd for _ in range(grd)]
+                    p1att = [[0]*grd for _ in range(grd)]
+                    p2att = [[0]*grd for _ in range(grd)]
+                    reset_ship_status(ssp1); reset_ship_status(ssp2)
+                    auto_place_with_records(p1br, p1ships, grd)
+                    auto_place_with_records(p2br, p2ships, grd)
+                    gs = "ready"
+                elif btnresume.collidepoint(event.pos) and hassave:
+                    # silly comment 9: time travel using saved data
+                    try:
+                        data = filemanager.load_game()
+                        if data: loadsave(data)
+                    except Exception: pass
 
-                if manual_button.collidepoint(event.pos):
-                    p1board = [[0]*gridsize for _ in range(gridsize)]
-                    p2board = [[0]*gridsize for _ in range(gridsize)]
-                    p1_attempts = [[0]*gridsize for _ in range(gridsize)]
-                    p2_attempts = [[0]*gridsize for _ in range(gridsize)]
-                    p1_ships.clear()
-                    p2_ships.clear()
-                    reset_ship_status(ship_status_p1)
-                    reset_ship_status(ship_status_p2)
-                    ship_index = 0
-                    ship_dir = "H"
-                    game_state = "setup_manual_p1"
-
-                elif automatic_button.collidepoint(event.pos):
-                    p1board = [[0]*gridsize for _ in range(gridsize)]
-                    p2board = [[0]*gridsize for _ in range(gridsize)]
-                    p1_attempts = [[0]*gridsize for _ in range(gridsize)]
-                    p2_attempts = [[0]*gridsize for _ in range(gridsize)]
-                    p1_ships.clear()
-                    p2_ships.clear()
-                    reset_ship_status(ship_status_p1)
-                    reset_ship_status(ship_status_p2)
-                    auto_place_with_records(p1board, p1_ships, gridsize)
-                    auto_place_with_records(p2board, p2_ships, gridsize)
-                    game_state = "ready"
-
-                elif resume_button.collidepoint(event.pos) and has_saved:
-                    data = filemanager.load_game()
-                    if data:
-                        load_state_dict(data)
-
-
-        # =================================
-        # MANUAL P1
-        # =================================
-        elif game_state == "setup_manual_p1":
-
+        # ---------- MANUAL P1 SHIP PLACEMENT ----------
+        elif gs == "setupmanualp1":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x,y = event.pos
-                gx = (x - player_board_pos[0]) // 35
-                gy = (y - player_board_pos[1]) // 35
-
-                if 0 <= gx < gridsize and 0 <= gy < gridsize:
-
-                    if ship_index < len(SHIP_SIZES):
-                        size = SHIP_SIZES[ship_index]
-                        if can_place(p1board, gy, gx, size, ship_dir, gridsize):
-                            cells = place_ship(p1board, gy, gx, size, ship_dir)
-                            p1_ships.append(create_ship_record(SHIP_TYPES_LIST[ship_index][0], cells))
-                            ship_index += 1
-
-                    if ship_index >= len(SHIP_SIZES):
-                        # FIRST delay: show final ship on the board
+                gx = (x - brdtl[0]) // 35
+                gy = (y - brdtl[1]) // 35
+                if 0 <= gx < grd and 0 <= gy < grd:
+                    if shipidx < len(SHIP_SIZES):
+                        size = SHIP_SIZES[shipidx]
+                        if can_place(p1br, gy, gx, size, shipdir, grd):
+                            cells = place_ship(p1br, gy, gx, size, shipdir)
+                            nm = SHIP_TYPES_LIST[shipidx][0]
+                            p1ships.append(create_ship_record(nm, cells))
+                            shipidx += 1
+                    if shipidx >= len(SHIP_SIZES):
+                        shipidx = 0; shipdir = "H"
                         placement_timer = pygame.time.get_ticks() + 500
-                        game_state = "placement_showboard_p1"
+                        gs = "placement_showboard_p1"
 
-
-        # =================================
-        # MANUAL P2
-        # =================================
-        elif game_state == "setup_manual_p2":
-
+        # ---------- MANUAL P2 SHIP PLACEMENT ----------
+        elif gs == "setupmanualp2":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x,y = event.pos
-                gx = (x - player_board_pos[0]) // 35
-                gy = (y - player_board_pos[1]) // 35
-
-                if 0 <= gx < gridsize and 0 <= gy < gridsize:
-
-                    if ship_index < len(SHIP_SIZES):
-                        size = SHIP_SIZES[ship_index]
-                        if can_place(p2board, gy, gx, size, ship_dir, gridsize):
-                            cells = place_ship(p2board, gy, gx, size, ship_dir)
-                            p2_ships.append(create_ship_record(SHIP_TYPES_LIST[ship_index][0], cells))
-                            ship_index += 1
-
-                    if ship_index >= len(SHIP_SIZES):
+                gx = (x - brdtl[0]) // 35
+                gy = (y - brdtl[1]) // 35
+                if 0 <= gx < grd and 0 <= gy < grd:
+                    if shipidx < len(SHIP_SIZES):
+                        size = SHIP_SIZES[shipidx]
+                        if can_place(p2br, gy, gx, size, shipdir, grd):
+                            cells = place_ship(p2br, gy, gx, size, shipdir)
+                            nm = SHIP_TYPES_LIST[shipidx][0]
+                            p2ships.append(create_ship_record(nm, cells))
+                            shipidx += 1
+                    if shipidx >= len(SHIP_SIZES):
+                        shipidx = 0; shipdir = "H"
                         placement_timer = pygame.time.get_ticks() + 500
-                        game_state = "placement_showboard_p2"
+                        gs = "placement_showboard_p2"
 
-
-        # =================================
-        # NEW: show final ship on P1 board
-        # =================================
-        elif game_state == "placement_showboard_p1":
-            # After showing board for 0.5s, go to next stage
+        elif gs == "placement_showboard_p1":
             if pygame.time.get_ticks() >= placement_timer:
                 placement_timer = pygame.time.get_ticks() + 500
-                game_state = "placement_done_p1"
+                gs = "placement_done_p1"
 
-        # =================================
-        # NEW: show "P1 DONE!"
-        # =================================
-        elif game_state == "placement_done_p1":
+        elif gs == "placement_done_p1":
             if pygame.time.get_ticks() >= placement_timer:
-                ship_index = 0
-                ship_dir = "H"
-                game_state = "setup_manual_p2"
+                shipidx = 0; shipdir = "H"
+                gs = "setupmanualp2"
 
-
-        # =================================
-        # NEW: show final ship on P2 board
-        # =================================
-        elif game_state == "placement_showboard_p2":
+        elif gs == "placement_showboard_p2":
             if pygame.time.get_ticks() >= placement_timer:
                 placement_timer = pygame.time.get_ticks() + 500
-                game_state = "placement_done_p2"
+                gs = "placement_done_p2"
 
-
-        # =================================
-        # NEW: show "P2 DONE!"
-        # =================================
-        elif game_state == "placement_done_p2":
+        elif gs == "placement_done_p2":
             if pygame.time.get_ticks() >= placement_timer:
-                ship_index = 0
-                ship_dir = "H"
-                game_state = "ready"
+                shipidx = 0; shipdir = "H"
+                gs = "ready"
 
-
-        # =================================
-        # READY
-        # =================================
-        elif game_state == "ready":
+        # ---------- READY ----------
+        elif gs == "ready":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                game_state = "battle"
+                curply = "p1"
+                gs = "battle"
 
-
-        # =================================
-        # BATTLE
-        # =================================
-        elif game_state == "battle":
-
+        # ---------- BATTLE ----------
+        elif gs == "battle":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x,y = event.pos
-                gx = (x - enemy_board_pos[0]) // 35
-                gy = (y - enemy_board_pos[1]) // 35
-
-                if 0 <= gx < gridsize and 0 <= gy < gridsize:
-
-                    prev_player = current_player
-                    last_attacker = prev_player  # record who attacked
-
-                    current_player, winner = process_attack(
-                        current_player, gy, gx,
-                        p1board, p2board,
-                        p1_attempts, p2_attempts,
-                        p1_ships, p2_ships,
-                        ship_status_p1, ship_status_p2,
-                        p1, p2, gridsize
+                gx = (x - brdtl[0]) // 35
+                gy = (y - brdtl[1]) // 35
+                if 0 <= gx < grd and 0 <= gy < grd:
+                    prev = curply
+                    last_attacker = prev
+                    curply, winner = process_attack(
+                        curply, gy, gx,
+                        p1br, p2br,
+                        p1att, p2att,
+                        p1ships, p2ships,
+                        ssp1, ssp2,
+                        p1, p2, grd
                     )
-
-                    # FORCED alternating turns (explicit)
-                    current_player = "p2" if prev_player == "p1" else "p1"
-
-                    filemanager.save_game(make_save_dict())
-
+                    # switching turns like tossing hot potato
+                    curply = "p2" if prev == "p1" else "p1"
+                    try: filemanager.save_game(makesave())
+                    except: pass
                     if winner is not None:
-                        game_state = "gameover"
-
+                        gs = "gameover"
                     else:
-                        # detect hit/miss based on prev_player and attempts arrays
-                        if prev_player == "p1":
-                            was_hit = (p2_attempts[gy][gx] == 2)
+                        if prev == "p1":
+                            was_hit = (p2att[gy][gx] == 2)
                         else:
-                            was_hit = (p1_attempts[gy][gx] == 2)
-
+                            was_hit = (p1att[gy][gx] == 2)
                         attack_result = "HIT!" if was_hit else "MISS!"
+                        #  dramatic pause for effect
                         result_timer = pygame.time.get_ticks() + 500
-                        game_state = "show_result"
+                        gs = "show_result"
 
-
-        # =================================
-        # SHOW HIT/MISS
-        # =================================
-        elif game_state == "show_result":
+        elif gs == "show_result":
             if pygame.time.get_ticks() >= result_timer:
-                current_turn_player = p1 if current_player == "p1" else p2
-                game_state = "switch"
+                current_turn_player = p1 if curply == "p1" else p2
+                gs = "switch"
 
-
-        # =================================
-        # COVER SCREEN
-        # =================================
-        elif game_state == "switch":
+        elif gs == "switch":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                game_state = "battle"
+                # hiding screen like cheating in exams
+                gs = "battle"
 
-
-        # =================================
-        # GAME OVER
-        # =================================
-        elif game_state == "gameover":
+        elif gs == "gameover":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
+                # silly comment 13: exiting like rage quit but happier
+                run = False
 
-
-        # RESTART BUTTON (in all states except placement/show/result)
+        # restart anytime (almost…)
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if restart_button.collidepoint(event.pos):
-                game_state = "menu"
-                p1_ships.clear()
-                p2_ships.clear()
-                p1board = [[0]*gridsize for _ in range(gridsize)]
-                p2board = [[0]*gridsize for _ in range(gridsize)]
-                p1_attempts = [[0]*gridsize for _ in range(gridsize)]
-                p2_attempts = [[0]*gridsize for _ in range(gridsize)]
-                reset_ship_status(ship_status_p1)
-                reset_ship_status(ship_status_p2)
+            if btnrestart.collidepoint(event.pos):
+                #  deleting history like clearing browser tabs fast
+                gs = "menu"
+                p1ships.clear(); p2ships.clear()
+                p1br = [[0]*grd for _ in range(grd)]
+                p2br = [[0]*grd for _ in range(grd)]
+                p1att = [[0]*grd for _ in range(grd)]
+                p2att = [[0]*grd for _ in range(grd)]
+                reset_ship_status(ssp1); reset_ship_status(ssp2)
 
+    # ---------- DRAW SECTION ----------
+    scr.blit(bgimg, (0,0))
 
-    # ====================================================
-    # DRAW SECTION
-    # ====================================================
-    # default background clear (we'll override in special states)
-    screen.blit(bg1, (0,0))
-
-
-    # INPUT SCREEN
-    if game_state == "input":
-
-        if current == "p1":
-            screen.blit(font1.render("Enter Player 1:", True, WHITE), (250,200))
-        elif current == "p2":
-            screen.blit(font1.render("Enter Player 2:", True, WHITE), (250,200))
+    if gs == "input":
+        if namecur == "p1":
+            scr.blit(f1.render("Enter p1:", True, WHITE), (250, 200))
+        elif namecur == "p2":
+            scr.blit(f1.render("Enter p2:", True, WHITE), (250, 200))
         else:
-            screen.blit(font1.render(f"Welcome {p1} & {p2}!", True, WHITE), (250,300))
-            screen.blit(font2.render("Press SPACE to continue", True, (255,200,0)), (300,380))
+            scr.blit(f1.render(f"Welcome {p1} & {p2}!", True, WHITE), (200, 300))
+            scr.blit(f2.render("Press SPACE to start the game!", True, (255, 200, 0)), (250, 380))
             pygame.display.flip()
+            clk.tick(60)
             continue
+        pygame.draw.rect(scr, (200,0,0), inpbox, 5)
+        scr.blit(f1.render(inptext, True, WHITE), (inpbox.x + 10, inpbox.y + 10))
 
-        pygame.draw.rect(screen, (200,0,0), input_box, 3)
-        screen.blit(font1.render(text, True, WHITE), (input_box.x+10, input_box.y+10))
+    elif gs == "menu":
+        scr.blit(f1.render("Choose set up mode", True, WHITE), (250, 250))
+        pygame.draw.rect(scr, (30, 120, 200), btnmanual)
+        pygame.draw.rect(scr, (30, 120, 200), btnauto)
+        scr.blit(f2.render("Set board manually", True, WHITE), (btnmanual.x + 50, btnmanual.y + 35))
+        scr.blit(f2.render("Automatic setup", True, WHITE), (btnauto.x + 35, btnauto.y + 45))
+        if hassave:
+            pygame.draw.rect(scr, (40, 180, 100), btnresume)
+            scr.blit(f2.render("Resume saved game", True, WHITE), (btnresume.x + 60, btnresume.y + 20))
 
+    elif gs == "setupmanualp1":
+        scr.blit(f2.render(f"{p1} place ships", True, WHITE), (300, 100))
+        drawboard(p1br, brdtl)
+        drawshipstatus(ssp1)
 
-    # MENU
-    elif game_state == "menu":
-        screen.blit(font1.render("Choose Setup Mode", True, WHITE), (260,200))
+    elif gs == "setupmanualp2":
+        scr.blit(f2.render(f"{p2} place ships", True, WHITE), (300, 100))
+        drawboard(p2br, brdtl)
+        drawshipstatus(ssp2)
 
-        pygame.draw.rect(screen, (30,120,200), manual_button)
-        screen.blit(font2.render("Manual Setup", True, WHITE),
-                    (manual_button.x+130, manual_button.y+28))
+    elif gs == "placement_showboard_p1":
+        scr.blit(bgimg, (0,0))
+        drawboard(p1br, brdtl)
+        scr.blit(f2.render("Final ship placed!", True, WHITE), (360,150))
 
-        pygame.draw.rect(screen, (30,120,200), automatic_button)
-        screen.blit(font2.render("Automatic Setup", True, WHITE),
-                    (automatic_button.x+110, automatic_button.y+28))
+    elif gs == "placement_done_p1":
+        scr.blit(bgimg, (0,0))
+        drawboard(p1br, brdtl)
+        scr.blit(f1.render(f"{p1} DONE!", True, WHITE), (520,350))
 
-        if has_saved:
-            pygame.draw.rect(screen, (40,180,100), resume_button)
-            screen.blit(font2.render("Resume Saved Game", True, WHITE),
-                        (resume_button.x+100, resume_button.y+20))
+    elif gs == "placement_showboard_p2":
+        scr.blit(bgimg, (0,0))
+        drawboard(p2br, brdtl)
+        scr.blit(f2.render("Final ship placed!", True, WHITE), (360,150))
 
+    elif gs == "placement_done_p2":
+        scr.blit(bgimg, (0,0))
+        drawboard(p2br, brdtl)
+        scr.blit(f1.render(f"{p2} DONE!", True, WHITE), (520,350))
 
-    # MANUAL P1
-    elif game_state == "setup_manual_p1":
-        screen.blit(font2.render(f"{p1}: Place Ships (R to rotate)", True, WHITE), (300, 100))
-        drawboard(p1board, player_board_pos)
+    elif gs == "ready":
+        scr.blit(f1.render("Both players ready!", True, (0,200,0)), (250,300))
+        scr.blit(f2.render("Press SPACE to start the battle!", True, WHITE), (300,380))
 
-    # MANUAL P2
-    elif game_state == "setup_manual_p2":
-        screen.blit(font2.render(f"{p2}: Place Ships (R to rotate)", True, WHITE), (300, 100))
-        drawboard(p2board, player_board_pos)
-
-
-    # FINAL SHIP DISPLAY P1
-    elif game_state == "placement_showboard_p1":
-        # clear and show only P1 board + small message
-        screen.blit(bg1, (0,0))
-        drawboard(p1board, player_board_pos)
-        screen.blit(font2.render("Final ship placed!", True, WHITE), (360,150))
-
-
-    # P1 DONE MESSAGE (shifted right to x=520)
-    elif game_state == "placement_done_p1":
-        screen.blit(bg1, (0,0))
-        drawboard(p1board, player_board_pos)
-        screen.blit(font1.render(f"{p1} DONE!", True, WHITE), (520,350))
-
-
-    # FINAL SHIP DISPLAY P2
-    elif game_state == "placement_showboard_p2":
-        screen.blit(bg1, (0,0))
-        drawboard(p2board, player_board_pos)
-        screen.blit(font2.render("Final ship placed!", True, WHITE), (360,150))
-
-
-    # P2 DONE MESSAGE (shifted right to x=520)
-    elif game_state == "placement_done_p2":
-        screen.blit(bg1, (0,0))
-        drawboard(p2board, player_board_pos)
-        screen.blit(font1.render(f"{p2} DONE!", True, WHITE), (520,350))
-
-
-    # READY
-    elif game_state == "ready":
-        screen.blit(font1.render("Both boards ready!", True, (0,200,0)), (260,300))
-        screen.blit(font2.render("Press SPACE to start battle", True, WHITE), (300,380))
-
-
-    # BATTLE
-    elif game_state == "battle":
-        name = p1 if current_player == "p1" else p2
-        screen.blit(font1.render(f"{name}'s Turn", True, (255,220,0)), (330,130))
-
-        # Correct: message directly above the enemy grid
-        screen.blit(
-            font2.render("Click the enemy grid!", True, WHITE),
-            (enemy_board_pos[0], enemy_board_pos[1] - 30)
-        )
-
-        if current_player == "p1":
-            draw_full_board(p1board, p1_attempts, player_board_pos)
-            draw_attempts(p2_attempts, enemy_board_pos)
-            draw_ship_status_for_opponent(ship_status_p2, ship_status_pos)
+    elif gs == "battle":
+        scr.blit(f1.render(f"{p1 if curply=='p1' else p2}'s turn", True, (255,220,0)), (300, 130))
+        scr.blit(f2.render("Click grid to attack!", True, WHITE), (320, 170))
+        if curply == "p1":
+            drawattempts(p2att, brdtl)
+            drawshipstatus(ssp2)
         else:
-            draw_full_board(p2board, p2_attempts, player_board_pos)
-            draw_attempts(p1_attempts, enemy_board_pos)
-            draw_ship_status_for_opponent(ship_status_p1, ship_status_pos)
+            drawattempts(p1att, brdtl)
+            drawshipstatus(ssp1)
 
-
-
-    # HIT/MISS RESULT: draw the actual boards + colored text
-    elif game_state == "show_result":
-        screen.blit(bg1, (0,0))
-
-        # Draw correct attacker's view
+    elif gs == "show_result":
+        scr.blit(bgimg, (0,0))
         if last_attacker == "p1":
-            draw_full_board(p1board, p1_attempts, player_board_pos)
-            draw_attempts(p2_attempts, enemy_board_pos)
-            draw_ship_status_for_opponent(ship_status_p2, ship_status_pos)
+            drawfull(p1br, p1att, brdtl)
+            drawattempts(p2att, brdtl)
+            drawshipstatus(ssp2)
         else:
-            draw_full_board(p2board, p2_attempts, player_board_pos)
-            draw_attempts(p1_attempts, enemy_board_pos)
-            draw_ship_status_for_opponent(ship_status_p1, ship_status_pos)
-
-        # HIT/MISS message below the boards
-        color = RED if attack_result == "HIT!" else BLUE
-        msg = font1.render(attack_result, True, color)
-        screen.blit(msg, (430, 580))
-
-        press_msg = font2.render("Press SPACE to continue", True, (255,255,0))
-        screen.blit(press_msg, (380, 620))
-
-        # CHECK FOR SPACE SAFELY
+            drawfull(p2br, p2att, brdtl)
+            drawattempts(p1att, brdtl)
+            drawshipstatus(ssp1)
+        col = RED if attack_result == "HIT!" else BLUE
+        scr.blit(f1.render(attack_result, True, col), (430, 580))
+        scr.blit(f2.render("Press SPACE to continue", True, (255,255,0)), (380, 620))
         keys = pygame.key.get_pressed()
         if keys[pygame.K_SPACE]:
-            current_turn_player = p1 if current_player == "p1" else p2
-            game_state = "switch"
+            current_turn_player = p1 if curply == "p1" else p2
+            gs = "switch"
 
+    elif gs == "switch":
+        scr.blit(f1.render(f"{current_turn_player}'s turn!", True, WHITE), (300,320))
+        scr.blit(f2.render("Press SPACE to continue", True, (255,255,0)), (320,380))
 
+    elif gs == "gameover":
+        scr.blit(f1.render(f"{winner} wins!", True, (0,200,0)), (330,300))
+        scr.blit(f2.render("Press ESC to quit", True, WHITE), (370,370))
 
-
-    # COVER SCREEN
-    elif game_state == "switch":
-        screen.blit(font1.render(f"{current_turn_player}'s turn!", True, WHITE), (300,320))
-        screen.blit(font2.render("Press SPACE to continue", True, (255,255,0)), (320,380))
-
-
-    # GAME OVER
-    elif game_state == "gameover":
-        screen.blit(font1.render(f"{winner} WINS!", True, (0,200,0)), (350,330))
-        screen.blit(font2.render("Press ESC to quit", True, WHITE), (380,400))
-
-
-    # RESTART BUTTON (hide during placement/show_result states)
-    if game_state not in ("placement_showboard_p1", "placement_done_p1",
-                          "placement_showboard_p2", "placement_done_p2",
-                          "show_result"):
-        pygame.draw.rect(screen, (100,100,100), restart_button)
-        screen.blit(font2.render("Restart", True, WHITE),
-                    (restart_button.x+55, restart_button.y+10))
+    # restart button (not shown in dramatic screens)
+    if gs not in ("placement_showboard_p1", "placement_done_p1",
+                  "placement_showboard_p2", "placement_done_p2",
+                  "show_result"):
+        pygame.draw.rect(scr, (100,100,100), btnrestart)
+        scr.blit(f2.render("Restart (New Game)", True, WHITE), (btnrestart.x + 20, btnrestart.y + 8))
 
     pygame.display.flip()
-    clock.tick(60)
+    clk.tick(60)
 
-pygame.quit()
+pygame.quit()  # game over, time to touch grass
