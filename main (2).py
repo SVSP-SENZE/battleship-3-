@@ -44,7 +44,7 @@ except Exception:
 btnmanual = pygame.Rect(300, 300, 400, 80)
 btnauto = pygame.Rect(300, 420, 400, 80)
 btnresume = pygame.Rect(300, 540, 400, 60)
-btnrestart = pygame.Rect(720, 50, 200, 40)
+btnrestart = pygame.Rect(720, 50, 250, 40)
 
 # game state
 gs = "input"
@@ -435,7 +435,7 @@ while run:
     elif gs == "placement_done_p1":
         scr.blit(bgimg, (0,0))
         drawboard(p1br, brdtl)
-        scr.blit(f1.render(f"{p1} DONE!", True, WHITE), (520,350))
+        scr.blit(f1.render(f"{p1} DONE!", True, WHITE), (400,600))
 
     elif gs == "placement_showboard_p2":
         scr.blit(bgimg, (0,0))
@@ -445,7 +445,7 @@ while run:
     elif gs == "placement_done_p2":
         scr.blit(bgimg, (0,0))
         drawboard(p2br, brdtl)
-        scr.blit(f1.render(f"{p2} DONE!", True, WHITE), (520,350))
+        scr.blit(f1.render(f"{p2} DONE!", True, WHITE), (400,600))
 
     elif gs == "ready":
         scr.blit(f1.render("Both players ready!", True, (0,200,0)), (250,300))
