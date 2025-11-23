@@ -23,7 +23,7 @@ We hope you enjoy our little project! :D
 Made by:
 Shubhan Pokuri
 Lalith Srikanth
-Onmkar Singare
+Omkar Singare
 Aarya Bhatt
 Naksh Sharma
 
