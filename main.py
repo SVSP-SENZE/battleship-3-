@@ -27,7 +27,7 @@ try:
     bgimg = pygame.image.load(r"C:\Users\srika\OneDrive\Desktop\random.jpg").convert()
     bgimg = pygame.transform.scale(bgimg, (1000, 800))
 except Exception:
-    # silly comment 1
+    
     bgimg = pygame.Surface((1000, 800))
     bgimg.fill((20, 50, 80))  # fallback bg, vibes of sadness
 
@@ -36,9 +36,9 @@ try:
     shipimg = pygame.image.load(r"C:\Users\srika\OneDrive\Desktop\ship.jpg").convert_alpha()
     shipimg = pygame.transform.scale(shipimg, (35, 35))
 except Exception:
-    # silly comment 2
+    
     shipimg = pygame.Surface((35, 35), pygame.SRCALPHA)
-    pygame.draw.circle(shipimg, (200, 200, 200), (17, 17), 15)  # simple circle ship lol (budget Titanic)
+    pygame.draw.circle(shipimg, (200, 200, 200), (17, 17), 15)  # simple circle ship 
 
 # buttons
 btnmanual = pygame.Rect(300, 300, 400, 80)
@@ -194,7 +194,7 @@ while run:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             try:
-                filemanager.save_game(makesave())  # silly comment 5: saving like it's the last second of Jenga
+                filemanager.save_game(makesave())  #comment 5: saving like it's the last second of Jenga
             except Exception:
                 pass
             run = False
@@ -206,7 +206,7 @@ while run:
             if event.key == pygame.K_s:
                 try:
                     filemanager.save_game(makesave())
-                    # silly comment 6: ctrl+s muscle memory activated
+                    #comment 6: ctrl+s muscle memory activated
                 except Exception:
                     print("save failed lol")
 
@@ -239,7 +239,7 @@ while run:
         elif gs == "menu":
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if btnmanual.collidepoint(event.pos):
-                    # silly comment 7: manual mode = pain mode
+                    # comment 7: manual mode = pain mode
                     p1ships.clear(); p2ships.clear()
                     p1br = [[0]*grd for _ in range(grd)]
                     p2br = [[0]*grd for _ in range(grd)]
@@ -249,7 +249,7 @@ while run:
                     shipidx = 0; shipdir = "H"
                     gs = "setupmanualp1"
                 elif btnauto.collidepoint(event.pos):
-                    # silly comment 8: AI placing ships better than humans
+                    # comment 8: AI placing ships better than humans
                     p1ships.clear(); p2ships.clear()
                     p1br = [[0]*grd for _ in range(grd)]
                     p2br = [[0]*grd for _ in range(grd)]
@@ -497,4 +497,5 @@ while run:
     pygame.display.flip()
     clk.tick(60)
 
-pygame.quit()  # game over, time to touch grass
+pygame.quit()  # game over,play again when you feel like it
+
