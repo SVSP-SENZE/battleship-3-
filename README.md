@@ -18,6 +18,7 @@ The game gives you 5 ships:
 4.Battleship(4)
 5.Carrier(5)
 **sizes have been indicated**
+After each turn,you get to see what ships of yours has been drowned by the opponent.
 Any time in game,user can click on restart to start the game over.
 We hope you enjoy our little project! :D
 Made by:
